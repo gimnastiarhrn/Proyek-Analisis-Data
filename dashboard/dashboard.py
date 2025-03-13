@@ -2,40 +2,40 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
-from babel.numbers import format_currency
+import os
 
-# Set style for seaborn
-sns.set(style='darkgrid')
 
-# Load cleaned data
-orders_df = pd.read_csv("cleaned_orders.csv")
-orderReviews_df = pd.read_csv("cleaned_order_reviews.csv")
-merged_sales_df = pd.read_csv("cleaned_merged_sales.csv")
+# Tentukan path relatif ke file dataset
+current_dir = os.path.dirname(__file__)  # Mendapatkan direktori saat ini
+orders_df = pd.read_csv(os.path.join(current_dir, "cleaned_orders.csv"))
+orderReviews_df = pd.read_csv(os.path.join(current_dir, "cleaned_order_reviews.csv"))
+merged_sales_df = pd.read_csv(os.path.join(current_dir, "cleaned_merged_sales.csv"))
 
 # Data preprocessing
 orders_df['order_delivered_customer_date'] = pd.to_datetime(orders_df['order_delivered_customer_date'])
 orders_df['order_estimated_delivery_date'] = pd.to_datetime(orders_df['order_estimated_delivery_date'])
 
-# Calculate delivery delay
+# Hitung keterlambatan pengiriman
 orders_df['delivery_delay'] = (orders_df['order_delivered_customer_date'] - 
                                 orders_df['order_estimated_delivery_date']).dt.days
-orders_df['delivery_delay'] = orders_df['delivery_delay'].apply(lambda x: max(x, 0))  # Avoid negative values
+orders_df['delivery_delay'] = orders_df['delivery_delay'].apply(lambda x: max(x, 0))  # Hindari nilai negatif
 
-# Sidebar for user input
-st.sidebar.header("Filter Options")
+# Sidebar untuk input pengguna
+st.sidebar.header("Opsi Filter")
 
 # Pertanyaan 1: Kategori Produk Paling Banyak Terjual
 st.sidebar.subheader("Top Product Categories")
-top_n = st.sidebar.text_input("Enter number of top categories to display:", "10")
-# Dropdown for selecting first category
+top_n = st.sidebar.text_input("Masukkan jumlah kategori teratas yang ingin ditampilkan:", "10")
+# Dropdown untuk memilih kategori pertama
 category_options = merged_sales_df['product_category_name_english'].unique().tolist()
 category1 = st.sidebar.selectbox("Pilih Kategori Pertama", ["Semua Kategori"] + category_options)
 
-# Dropdown for selecting second category
+# Dropdown untuk memilih kategori kedua
 category2 = st.sidebar.selectbox("Pilih Kategori Kedua", ["Semua Kategori"] + category_options)
-# Pertanyaan 2: Pengaruh Keterlambatan Pengiriman terhadap Review Score
-st.sidebar.subheader("Delivery Delay Impact on Review Score")
-min_delay, max_delay = st.sidebar.slider("Select Delivery Delay Range (days)", 0, 30, (0, 30))
+
+# Pertanyaan 2: Pengaruh Keterlambatan Pengiriman terhadap Skor Ulasan
+st.sidebar.subheader("Pengaruh Keterlambatan Pengiriman terhadap Skor Ulasan")
+min_delay, max_delay = st.sidebar.slider("Pilih Rentang Keterlambatan Pengiriman (hari)", 0, 30, (0, 30))
 
 # Visualisasi Kategori Teratas
 st.header("Top Product Categories")
@@ -44,7 +44,7 @@ if top_n.isdigit():
     category_sales = merged_sales_df['product_category_name'].value_counts().head(top_n)
     fig, ax = plt.subplots()
     sns.barplot(x=category_sales.values, y=category_sales.index, ax=ax, palette='viridis')
-    plt.title(f'Top {top_n} Product Categories')
+    plt.title(f'Top {top_n} Kategori Produk')
     st.pyplot(fig)
     
 st.header("Perbandingan Dua Kategori Produk")
@@ -67,7 +67,7 @@ else:
     st.warning("Silakan pilih dua kategori untuk perbandingan.")
 
 # Visualisasi Pengaruh Keterlambatan Pengiriman terhadap Skor Ulasan
-st.header("Impact of Delivery Delay on Review Score")
+st.header("Pengaruh Keterlambatan Pengiriman terhadap Skor Ulasan")
 filtered_orders = orders_df[(orders_df['delivery_delay'] >= min_delay) & (orders_df['delivery_delay'] <= max_delay)]
 merged_reviews = filtered_orders.merge(orderReviews_df, on='order_id', how='inner')
 
@@ -75,5 +75,5 @@ delay_by_score = merged_reviews.groupby('review_score')['delivery_delay'].mean()
 
 fig, ax = plt.subplots()
 sns.barplot(data=delay_by_score, x='review_score', y='delivery_delay', ax=ax, palette='coolwarm')
-plt.title('Average Delivery Delay by Review Score')
+plt.title('Rata-rata Keterlambatan Pengiriman berdasarkan Skor Ulasan')
 st.pyplot(fig)
